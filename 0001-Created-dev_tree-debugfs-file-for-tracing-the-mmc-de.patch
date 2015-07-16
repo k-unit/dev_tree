@@ -1,0 +1,119 @@
+From 099f5c6533f8287511ab41fcb53f18317be47bbf Mon Sep 17 00:00:00 2001
+From: Ilan Smith <ilan.smith@sandisk.com>
+Date: Wed, 22 Jul 2015 12:15:11 +0900
+Subject: [PATCH] Created dev_tree debugfs file for tracing the mmc device
+ hierarchy.
+
+View the mmc device tree by issuing:
+
+    # cat /sys/kernel/debug/mmc0/mmc0:0001/dev_tree
+
+This will  produce a tree display that looks like:
+
+    .
+    |
+    +-- msm_sdcc.1
+        |
+        +-- mmc0::
+        |
+        +-- mmc0 [host]
+            |
+            +-- mmc0:0001 [card]
+                |
+                +-- mmcblk0
+                    |
+                    +-- mmcblk0p1
+                    |
+                    +-- mmcblk0p2
+                    |
+                    +-- ...
+                    |
+                    .
+                    .
+                    .
+---
+ drivers/Makefile             |  2 ++
+ drivers/mmc/Kconfig          |  7 +++++++
+ drivers/mmc/core/debugfs.c   |  4 ++++
+ include/linux/mmc/dev_tree.h | 19 +++++++++++++++++++
+ 4 files changed, 32 insertions(+)
+ create mode 100644 include/linux/mmc/dev_tree.h
+
+diff --git a/drivers/Makefile b/drivers/Makefile
+index 08b22e6..8dbfbc3 100644
+--- a/drivers/Makefile
++++ b/drivers/Makefile
+@@ -155,3 +155,5 @@ obj-$(CONFIG_LGE_FELICA)        += felica/
+ 
+ obj-$(CONFIG_BIF)		+= bif/
+ obj-$(CONFIG_SENSORS)		+= sensors/
++
++obj-$(CONFIG_DEV_TREE)		+= $(MMC_MH_DEV_TREE_PATH)
+diff --git a/drivers/mmc/Kconfig b/drivers/mmc/Kconfig
+index 18e8911..5643490 100644
+--- a/drivers/mmc/Kconfig
++++ b/drivers/mmc/Kconfig
+@@ -27,6 +27,13 @@ config MMC_PERF_PROFILING
+ 	  If you say Y here, support will be added for collecting
+ 	  performance numbers at the MMC Queue and Host layers.
+ 
++config DEV_TREE
++	bool "MMC device tree hierarchy"
++	depends on DEBUG_FS != n
++	help
++	  If you say Y here, a debugfs file will be created in the card debugfs
++	  directory displaying the MMC device hierarchy.
++
+ config LGE_MMC_SD_USE_SDCC3
+ 	bool "microSD use SDCC3 instead of SDCC2"
+ 	depends on MMC != n
+diff --git a/drivers/mmc/core/debugfs.c b/drivers/mmc/core/debugfs.c
+index a52ec4d..916f671 100644
+--- a/drivers/mmc/core/debugfs.c
++++ b/drivers/mmc/core/debugfs.c
+@@ -19,6 +19,7 @@
+ 
+ #include <linux/mmc/card.h>
+ #include <linux/mmc/host.h>
++#include <linux/mmc/dev_tree.h>
+ 
+ #include "core.h"
+ #include "mmc_ops.h"
+@@ -1055,6 +1056,9 @@ void mmc_add_card_debugfs(struct mmc_card *card)
+ 					 &mmc_dbg_bkops_stats_fops))
+ 			goto err;
+ 
++	if (!mmc_create_dev_tree_debugfs(card, root))
++		goto err;
++
+ 	return;
+ 
+ err:
+diff --git a/include/linux/mmc/dev_tree.h b/include/linux/mmc/dev_tree.h
+new file mode 100644
+index 0000000..adf3969
+--- /dev/null
++++ b/include/linux/mmc/dev_tree.h
+@@ -0,0 +1,19 @@
++#ifndef _DEV_TREE_H_
++#define _DEV_TREE_H_
++
++#include <linux/dcache.h>
++#include <linux/mmc/card.h>
++
++#ifdef CONFIG_DEBUG_FS
++bool mmc_create_dev_tree_debugfs(struct mmc_card *card,
++	struct dentry *root);
++#else
++static inline bool mmc_create_dev_tree_debugfs(struct mmc_card *card,
++	struct dentry *root)
++{
++	return true;
++}
++#endif
++
++#endif
++
+-- 
+1.9.1
+
