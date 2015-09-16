@@ -11,6 +11,7 @@
 
 static int mmc_dev_tree(void)
 {
+	struct kunit_host *hc;
 	struct mmc_host *host = NULL;
 	struct mmc_card *card = NULL;
 	struct dentry *dev_tree;
@@ -18,13 +19,31 @@ static int mmc_dev_tree(void)
 	char buf[PAGE_SIZE] = {0};
 	char expected[] = ".\n" \
 			  "|\n" \
-			  "+-- mmc0 [host]\n" \
+			  "+-- kunit-hc\n" \
 			  "    |\n" \
-			  "    +-- mmc0:0001 [card]\n" \
+			  "    +-- mmc0 [host]\n" \
 			  "        |\n" \
-			  "        +-- mmcblk0\n";
+			  "        +-- mmc0:0001 [card]\n" \
+			  "            |\n" \
+			  "            +-- mmcblk0\n" \
+			  "                |\n" \
+			  "                +-- mmcblk0p1\n" \
+			  "                |\n" \
+			  "                +-- mmcblk0p2\n" \
+			  "                |\n" \
+			  "                +-- mmcblk0p3\n" \
+			  "                |\n" \
+			  "                +-- mmcblk0p4\n" \
+			  "                |\n" \
+			  "                +-- mmcblk0p5\n" \
+			  "                |\n" \
+			  "                +-- mmcblk0p6\n" \
+			  "                |\n" \
+			  "                +-- mmcblk0p7\n" \
+			  "                |\n" \
+			  "                +-- mmcblk0p8\n";
 
-	if (kut_mmc_init(NULL, &host, &card, 0))
+	if (kut_mmc_init(&hc, &host, &card, 8))
 		return -1;
 
 	if (!mmc_create_dev_tree_debugfs(card, NULL))
@@ -42,7 +61,7 @@ static int mmc_dev_tree(void)
 	ret = 0;
 exit:
 	debugfs_remove_recursive(&kern_root);
-	kut_mmc_uninit(NULL, host, card);
+	kut_mmc_uninit(hc, host, card);
 	return ret;
 }
  
