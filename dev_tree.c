@@ -18,8 +18,8 @@ struct device_iterator {
 static int dev_tree_rec(struct device *dev, void *data)
 {
 	struct device_iterator *di = (struct device_iterator *)data;
-	char *extra;
-	int i, ret;
+	char *extra, *start = di->buf + di->consumed;
+	int i, delta, ret;
 
 	if (!dev->p)
 		return 0;
@@ -35,8 +35,10 @@ static int dev_tree_rec(struct device *dev, void *data)
 		int indent;
 
 		for (indent = 0; indent < di->depth; indent++) {
+			*(di->buf + di->consumed) = indent ? 0 - indent : ' ';
+			di->consumed++;
 			di->consumed += snprintf(di->buf + di->consumed,
-				PAGE_SIZE - di->consumed, "    ");
+				PAGE_SIZE - di->consumed, "   ");
 		}
 		di->consumed += snprintf(di->buf + di->consumed,
 			PAGE_SIZE - di->consumed, i ? "+-- %s%s\n" : "|\n",
@@ -46,6 +48,23 @@ static int dev_tree_rec(struct device *dev, void *data)
 	di->depth++;
 	ret = device_for_each_child(dev, data, dev_tree_rec);
 	di->depth--;
+
+	/* consolidate indentation of di->dpeth up to this device */
+	extra = strchr(di->buf, (char)(0 - di->depth));
+	if (extra) {
+		while (extra < start) {
+			if (*extra == (char)(0 - di->depth))
+				*extra = '|';
+			extra++;
+		}
+	}
+
+	/* remove possible dangling '|' caused by chilren */
+	delta = (di->buf + di->consumed) - start;
+	for (i = 0; i < delta; i++) {
+		if (*(start + i) == (char)(0 - (di->depth + 1)))
+			*(start + i) = ' ';
+	}
 	return ret;
 }
 

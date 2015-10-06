@@ -11,42 +11,67 @@
 
 static int mmc_dev_tree(void)
 {
-	struct kunit_host *hc;
-	struct mmc_host *host = NULL;
-	struct mmc_card *card = NULL;
+	struct device platform = {0};
+	struct kunit_host *hc0 = NULL, *hc1 = NULL;
+	struct mmc_host *host0 = NULL, *host1 = NULL;
+	struct mmc_card *card0 = NULL, *card1 = NULL;
 	struct dentry *dev_tree;
 	int ret = -1;
 	char buf[PAGE_SIZE] = {0};
 	char expected[] = ".\n" \
 			  "|\n" \
-			  "+-- kunit-hc\n" \
+			  "+-- platform\n" \
 			  "    |\n" \
-			  "    +-- mmc0 [host]\n" \
+			  "    +-- kunit-hc.0\n" \
+			  "    |   |\n" \
+			  "    |   +-- mmc0 [host]\n" \
+			  "    |       |\n" \
+			  "    |       +-- mmc0:0001 [card]\n" \
+			  "    |           |\n" \
+			  "    |           +-- mmcblk0\n" \
+			  "    |               |\n" \
+			  "    |               +-- mmcblk0p1\n" \
+			  "    |               |\n" \
+			  "    |               +-- mmcblk0p2\n" \
+			  "    |               |\n" \
+			  "    |               +-- mmcblk0p3\n" \
+			  "    |               |\n" \
+			  "    |               +-- mmcblk0p4\n" \
+			  "    |               |\n" \
+			  "    |               +-- mmcblk0p5\n" \
+			  "    |               |\n" \
+			  "    |               +-- mmcblk0p6\n" \
+			  "    |               |\n" \
+			  "    |               +-- mmcblk0p7\n" \
+			  "    |               |\n" \
+			  "    |               +-- mmcblk0p8\n" \
+			  "    |\n" \
+			  "    +-- kunit-hc.1\n" \
 			  "        |\n" \
-			  "        +-- mmc0:0001 [card]\n" \
+			  "        +-- mmc1\n" \
 			  "            |\n" \
-			  "            +-- mmcblk0\n" \
+			  "            +-- mmc1:0001\n" \
 			  "                |\n" \
-			  "                +-- mmcblk0p1\n" \
-			  "                |\n" \
-			  "                +-- mmcblk0p2\n" \
-			  "                |\n" \
-			  "                +-- mmcblk0p3\n" \
-			  "                |\n" \
-			  "                +-- mmcblk0p4\n" \
-			  "                |\n" \
-			  "                +-- mmcblk0p5\n" \
-			  "                |\n" \
-			  "                +-- mmcblk0p6\n" \
-			  "                |\n" \
-			  "                +-- mmcblk0p7\n" \
-			  "                |\n" \
-			  "                +-- mmcblk0p8\n";
+			  "                +-- mmcblk1\n" \
+			  "                    |\n" \
+			  "                    +-- mmcblk1p1\n" \
+			  "                    |\n" \
+			  "                    +-- mmcblk1p2\n" \
+			  "                    |\n" \
+			  "                    +-- mmcblk1p3\n" \
+			  "                    |\n" \
+			  "                    +-- mmcblk1p4\n";
 
-	if (kut_mmc_init(&hc, &host, &card, 8))
+	if (!kut_dev_init(&platform, NULL, "platform"))
 		return -1;
 
-	if (!mmc_create_dev_tree_debugfs(card, NULL))
+	if (kut_mmc_init(&platform, &hc0, &host0, &card0, 8))
+		goto exit;
+
+	if (kut_mmc_init(&platform, &hc1, &host1, &card1, 4))
+		goto exit;
+
+	if (!mmc_create_dev_tree_debugfs(card0, NULL))
 		goto exit;
 
 	dev_tree = kut_dentry_lookup(NULL, "dev_tree");
@@ -61,7 +86,10 @@ static int mmc_dev_tree(void)
 	ret = 0;
 exit:
 	debugfs_remove_recursive(&kern_root);
-	kut_mmc_uninit(hc, host, card);
+	kut_mmc_uninit(hc1, host1, card1);
+	kut_mmc_uninit(hc0, host0, card0);
+	kut_dev_uninit(&platform);
+
 	return ret;
 }
  
